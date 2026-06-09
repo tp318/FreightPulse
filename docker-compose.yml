@@ -1,0 +1,5 @@
+# Optional: run all services together
+version: '3.8'
+
+services:
+  # Services will be configured here
