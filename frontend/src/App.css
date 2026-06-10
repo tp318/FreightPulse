@@ -1,0 +1,16 @@
+/* App-level layout only — components handle their own styles */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-base);
+}
+.main-grid {
+  display: grid;
+  grid-template-columns: 35% 65%;
+  flex: 1;
+  gap: 0;
+}
+@media (max-width: 1024px) {
+  .main-grid { grid-template-columns: 1fr; }
+}

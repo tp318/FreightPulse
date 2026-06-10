@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+:root {
+  --bg-base:         #0A0B0D;
+  --bg-surface:      #111318;
+  --bg-elevated:     #181C24;
+  --border:          #1E2330;
+  --border-accent:   #2A3348;
+
+  --text-primary:    #E8EAF0;
+  --text-secondary:  #8A91A8;
+  --text-tertiary:   #4A5168;
+
+  --accent-green:    #1D9E75;
+  --accent-green-dim:#0D5440;
+
+  --status-monitor:  #4A5168;
+  --status-watch:    #B88A1A;
+  --status-high:     #C4601A;
+  --status-critical: #B02020;
+
+  --signal-gdelt:    #CC4444;
+  --signal-weather:  #3A7ED4;
+  --signal-ais:      #7A5DD4;
+  --signal-congestion:#C4801A;
+
+  --font-mono:       'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --font-sans:       'Inter', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Thin dark scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-accent);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Utility class */
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Alert banner slide-in */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Live indicator pulsing dot */
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(29, 158, 117, 0.5);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 0 6px rgba(29, 158, 117, 0);
+  }
+}
+
+/* Critical badge pulse */
+@keyframes pulse-critical {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(176, 32, 32, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(176, 32, 32, 0);
+  }
+}
+
+/* Signal entry animation */
+@keyframes signalEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scanning line for empty feed */
+@keyframes scanLine {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Count-up placeholder — actual animation driven by JS */
+@keyframes countUp {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
