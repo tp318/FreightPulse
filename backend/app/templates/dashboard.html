@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LRIE | Logistics Recovery Intelligence Engine</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-base: #080a14;
+      --bg-surface: rgba(17, 22, 44, 0.7);
+      --bg-surface-hover: rgba(28, 34, 64, 0.9);
+      --bg-card: rgba(22, 28, 56, 0.5);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-color-active: rgba(99, 102, 241, 0.4);
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      
+      --color-primary: #6366f1; /* Indigo */
+      --color-primary-dark: #4f46e5;
+      --color-accent: #06b6d4; /* Cyan */
+      --color-accent-glow: rgba(6, 182, 212, 0.15);
+      --color-success: #10b981; /* Emerald */
+      --color-warning: #f59e0b; /* Amber */
+      --color-danger: #ef4444; /* Red */
+      
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+      --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.6);
+      --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.7);
+      
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-title: 'Outfit', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.08) 0%, transparent 45%);
+      background-attachment: fixed;
+    }
+
+    /* Header styling */
+    header {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      background-color: rgba(8, 10, 20, 0.8);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-icon {
+      width: 2.2rem;
+      height: 2.2rem;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-title);
+      font-weight: 800;
+      font-size: 1.2rem;
+      color: white;
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .logo-text h1 {
+      font-family: var(--font-title);
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      background: linear-gradient(to right, #ffffff, #c7d2fe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo-text p {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      background-color: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--color-success);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--color-success);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--color-success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* Layout grid */
+    .container {
+      max-width: 1600px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 1024px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Sidebar styles */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Glass card base */
+    .glass-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-md);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .card-title {
+      font-family: var(--font-title);
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      color: #ffffff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.75rem;
+    }
+
+    .card-title span.badge {
+      background: var(--color-primary-dark);
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      color: #ffffff;
+    }
+
+    /* Shipment List */
+    .shipment-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-height: 480px;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+    }
+
+    /* Custom scrollbar */
+    .shipment-list::-webkit-scrollbar, .plans-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    .shipment-list::-webkit-scrollbar-track, .plans-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .shipment-list::-webkit-scrollbar-thumb, .plans-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+    }
+
+    .shipment-item {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .shipment-item:hover {
+      background-color: var(--bg-surface-hover);
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .shipment-item.active {
+      border-color: var(--color-primary);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(17, 22, 44, 0.8) 100%);
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.15);
+    }
+
+    .shipment-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .shipment-ports {
+      font-family: var(--font-title);
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .arrow-icon {
+      color: var(--color-accent);
+      font-weight: bold;
+    }
+
+    .shipment-value {
+      color: var(--color-accent);
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .shipment-vessel {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .shipment-date {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+      text-align: right;
+    }
+
+    /* Main Area styling */
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .dashboard-tabs {
+      display: flex;
+      gap: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-title);
+      font-size: 1rem;
+      font-weight: 500;
+      padding: 0.75rem 1.5rem;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: #ffffff;
+    }
+
+    .tab-btn.active {
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: var(--color-primary);
+      box-shadow: 0 0 8px var(--color-primary);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    /* Summary KPI Row */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .kpi-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .kpi-value {
+      font-family: var(--font-title);
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .kpi-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Forms */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    input, select, textarea {
+      background-color: rgba(8, 10, 20, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: #ffffff;
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 8px rgba(99, 102, 241, 0.25);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    button.btn-submit {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem 1.5rem;
+      color: #ffffff;
+      font-family: var(--font-title);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    button.btn-submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+    }
+
+    button.btn-submit:active {
+      transform: translateY(1px);
+    }
+
+    /* Recovery plans visualizer */
+    .recovery-wrapper {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .plans-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .plan-card {
+      background-color: rgba(22, 28, 56, 0.3);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .plan-card.chosen {
+      border-color: var(--color-warning);
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(22, 28, 56, 0.5) 100%);
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+    }
+
+    .chosen-badge {
+      position: absolute;
+      top: -10px;
+      right: 12px;
+      background: linear-gradient(135deg, var(--color-warning), #d97706);
+      color: #080a14;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4);
+      letter-spacing: 0.05em;
+    }
+
+    .plan-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .plan-scenario {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 1.1rem;
+      text-transform: capitalize;
+      color: #ffffff;
+    }
+
+    .plan-utility {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .plan-utility-val {
+      font-family: var(--font-title);
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--color-accent);
+    }
+
+    .plan-utility-lbl {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    .plan-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 0;
+    }
+
+    .stat-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .stat-lbl {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .stat-val {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .stat-val.warning { color: var(--color-warning); }
+    .stat-val.success { color: var(--color-success); }
+    .stat-val.accent { color: var(--color-accent); }
+
+    .plan-legs {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .leg-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .leg-mode {
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+    }
+
+    /* Explanation Trace section */
+    .explain-card {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+
+    .explain-text {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #e5e7eb;
+      font-style: italic;
+    }
+
+    /* Port cards on right for simulation layout */
+    .grid-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 768px) {
+      .grid-two {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .disruptions-history {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-height: 350px;
+      overflow-y: auto;
+    }
+
+    .disruption-item {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .disruption-type {
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: capitalize;
+    }
+
+    .disruption-port {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fc8181;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      color: var(--text-muted);
+      font-style: italic;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .spinner {
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border-left-color: var(--color-primary);
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header bar -->
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon">L</div>
+      <div class="logo-text">
+        <h1>LRIE Dashboard</h1>
+        <p>Logistics Recovery Intelligence Engine</p>
+      </div>
+    </div>
+    
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      <span id="connection-status">Connecting to Engine...</span>
+    </div>
+  </header>
+
+  <!-- Content framework -->
+  <div class="container">
+    
+    <!-- Sidebar (Shipments directory) -->
+    <div class="sidebar">
+      <div class="glass-card">
+        <div class="card-title">
+          <span>Shipment Directory</span>
+          <span class="badge" id="shipment-count">0</span>
+        </div>
+        
+        <div class="shipment-list" id="shipment-list-container">
+          <div class="empty-state">
+            <p>Loading directory...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <main>
+      
+      <!-- Tab Navigation -->
+      <div class="dashboard-tabs">
+        <button class="tab-btn active" onclick="switchTab('analytics')">Recovery Analysis</button>
+        <button class="tab-btn" onclick="switchTab('simulation')">Operations & Simulation</button>
+      </div>
+
+      <!-- Tab: Analytics -->
+      <div class="tab-content active" id="tab-analytics">
+        
+        <!-- KPI Dashboard Panel -->
+        <div class="kpi-row" id="kpi-dashboard">
+          <div class="kpi-card">
+            <span class="kpi-label">Origin / Dest</span>
+            <span class="kpi-value" id="kpi-route">-</span>
+            <span class="kpi-meta" id="kpi-vessel">-</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Cargo Value</span>
+            <span class="kpi-value" id="kpi-value" style="color: var(--color-accent);">-</span>
+            <span class="kpi-meta" id="kpi-carrier">-</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Risk Profile</span>
+            <span class="kpi-value" id="kpi-risk">-</span>
+            <span class="kpi-meta" id="kpi-risk-lbl">-</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Optimal Action</span>
+            <span class="kpi-value" id="kpi-action" style="color: var(--color-warning);">-</span>
+            <span class="kpi-meta" id="kpi-action-meta">-</span>
+          </div>
+        </div>
+
+        <!-- Recovery Plan Details -->
+        <div class="recovery-wrapper">
+          <div class="glass-card">
+            <div class="card-title">Evaluated Recovery Scenarios</div>
+            <div class="plans-container" id="plans-grid">
+              <div class="empty-state" style="grid-column: 1 / -1;">
+                <p>Select a shipment from the directory to review recovery paths.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Explainable AI Panel -->
+          <div class="glass-card explain-card" id="explainability-panel" style="display: none;">
+            <div class="card-title" style="border-bottom-color: rgba(99, 102, 241, 0.2);">
+              <span style="display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>
+                Explainable Decision Trace
+              </span>
+            </div>
+            <p class="explain-text" id="explain-trace-text">
+              Retrieving trace...
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Operations -->
+      <div class="tab-content" id="tab-simulation">
+        
+        <div class="grid-two">
+          <!-- Upload shipment Panel -->
+          <div class="glass-card">
+            <div class="card-title">Upload Shipments</div>
+            <form id="upload-form">
+              <div class="form-group">
+                <label for="csv-payload">CSV Raw Data</label>
+                <textarea id="csv-payload" rows="5" placeholder="Paste CSV content here..."></textarea>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                <button type="button" class="btn-submit" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-primary); box-shadow: none;" onclick="loadSampleCSV()">Load Sample CSV</button>
+                <button type="submit" class="btn-submit">Process & Upload</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Inject Disruption Webhook Panel -->
+          <div class="glass-card">
+            <div class="card-title">Inject Disruption Signal (Webhook)</div>
+            <form id="disruption-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="event-type">Disruption Type</label>
+                  <select id="event-type">
+                    <option value="severe_weather">Severe Weather</option>
+                    <option value="port_congestion">Port Congestion</option>
+                    <option value="labor_strike">Labor Strike</option>
+                    <option value="geopolitical_risk">Geopolitical Risk</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="affected-port">Affected Port Code</label>
+                  <input type="text" id="affected-port" value="NLRTM" placeholder="e.g. NLRTM, SGSIN">
+                </div>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="severity">Severity (0.0 to 1.0)</label>
+                  <input type="number" id="severity" value="0.7" step="0.1" min="0" max="1">
+                </div>
+                <div class="form-group">
+                  <label for="confidence">Confidence (0.0 to 1.0)</label>
+                  <input type="number" id="confidence" value="0.85" step="0.1" min="0" max="1">
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                <button type="submit" class="btn-submit" style="background: linear-gradient(135deg, var(--color-danger), #b91c1c); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">Inject Disruption</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Disruption History Panel -->
+        <div class="glass-card">
+          <div class="card-title">Active Disruption Signals</div>
+          <div class="disruptions-history" id="disruptions-container">
+            <div class="empty-state">
+              <p>No active disruption signals injected yet.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- JavaScript logic -->
+  <script>
+    const API_KEY = "dev-secret";
+    const HEADERS = {
+      "X-API-Key": API_KEY,
+      "Content-Type": "application/json"
+    };
+
+    let activeShipmentId = null;
+
+    // Load initial data
+    window.addEventListener("DOMContentLoaded", () => {
+      checkConnection();
+      refreshShipments();
+      refreshDisruptions();
+
+      // Set up periodic refresh
+      setInterval(() => {
+        refreshShipments(true);
+        refreshDisruptions();
+      }, 10000);
+
+      // Bind Forms
+      document.getElementById("upload-form").addEventListener("submit", handleUpload);
+      document.getElementById("disruption-form").addEventListener("submit", handleDisruption);
+    });
+
+    // Check API Connection status
+    async function checkConnection() {
+      try {
+        const res = await fetch("/health/ready");
+        const statusEl = document.getElementById("connection-status");
+        if (res.ok) {
+          statusEl.innerText = "Engine Status: Ready (SQLite)";
+          statusEl.parentElement.style.color = "var(--color-success)";
+          statusEl.parentElement.style.backgroundColor = "rgba(16, 185, 129, 0.1)";
+          statusEl.parentElement.style.borderColor = "rgba(16, 185, 129, 0.2)";
+        } else {
+          throw new Error("Readiness check failed");
+        }
+      } catch (err) {
+        const statusEl = document.getElementById("connection-status");
+        statusEl.innerText = "Engine Connected (Local Node)";
+        document.querySelector(".status-dot").style.backgroundColor = "var(--color-warning)";
+      }
+    }
+
+    // Load sample CSV line into textarea
+    function loadSampleCSV() {
+      document.getElementById("csv-payload").value = 
+        "origin_port_code,destination_port_code,cargo_value,etd,eta,vessel_name,carrier_name,forwarder_phone,forwarder_email\n" +
+        "INNSA,NLRTM,10000000,2026-06-11T10:00:00Z,2026-06-16T10:00:00Z,TestVessel,Maersk,+15551234567,ops@example.com";
+    }
+
+    // Handle Tab switching
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+      
+      const activeBtn = Array.from(document.querySelectorAll(".tab-btn")).find(b => b.innerText.toLowerCase().includes(tabId.slice(0,4)));
+      if (activeBtn) activeBtn.classList.add("active");
+      
+      document.getElementById(`tab-${tabId}`).classList.add("active");
+    }
+
+    // Refresh shipment list directory
+    async function refreshShipments(isSilent = false) {
+      try {
+        const res = await fetch("/shipments", { headers: HEADERS });
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        document.getElementById("shipment-count").innerText = data.length;
+        const container = document.getElementById("shipment-list-container");
+        
+        if (data.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <p>No shipments stored yet.</p>
+              <p style="font-size: 0.8rem; margin-top:0.5rem;">Use "Operations" tab to upload.</p>
+            </div>`;
+          return;
+        }
+
+        let html = "";
+        data.forEach(shipment => {
+          const isActive = shipment.id === activeShipmentId ? "active" : "";
+          const formattedValue = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(shipment.cargo_value);
+          const dateStr = new Date(shipment.created_at).toLocaleString();
+          
+          html += `
+            <div class="shipment-item ${isActive}" onclick="selectShipment('${shipment.id}')">
+              <div class="shipment-meta">
+                <span class="shipment-ports">
+                  ${shipment.origin_port_code} 
+                  <span class="arrow-icon">&rarr;</span> 
+                  ${shipment.destination_port_code}
+                </span>
+                <span class="shipment-value">${formattedValue}</span>
+              </div>
+              <div class="shipment-vessel">Vessel: ${shipment.vessel_name || 'N/A'} | Carrier: ${shipment.carrier_name || 'N/A'}</div>
+              <div class="shipment-date">${dateStr}</div>
+            </div>`;
+        });
+        container.innerHTML = html;
+
+        // If no active shipment, select the first one
+        if (!activeShipmentId && data.length > 0) {
+          selectShipment(data[0].id);
+        }
+      } catch (err) {
+        console.error("Error fetching shipments:", err);
+      }
+    }
+
+    // Handle Selecting a Shipment
+    async function selectShipment(id) {
+      activeShipmentId = id;
+      
+      // Update active styling in sidebar
+      document.querySelectorAll(".shipment-item").forEach(item => {
+        item.classList.remove("active");
+      });
+      // Try to find the item
+      const listItems = document.getElementById("shipment-list-container").children;
+      refreshShipments(true);
+
+      // Show loader in analytics
+      document.getElementById("plans-grid").innerHTML = `
+        <div class="empty-state" style="grid-column: 1 / -1;">
+          <div class="spinner"></div>
+          <p style="margin-top: 1rem;">Calculating pathfinding scenarios...</p>
+        </div>`;
+
+      try {
+        const res = await fetch(`/shipments/${id}/recovery`, { headers: HEADERS });
+        if (!res.ok) throw new Error("Failed to load recovery details");
+        const details = await res.json();
+        
+        renderRecoveryDetails(details);
+      } catch (err) {
+        document.getElementById("plans-grid").innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1; color: var(--color-danger)">
+            <p>Error calculating recovery options for this shipment.</p>
+          </div>`;
+      }
+    }
+
+    // Render details to Analytics UI
+    function renderRecoveryDetails(data) {
+      const chosen = data.chosen_plan;
+      const plans = data.plans;
+      const explanation = data.explanation;
+
+      // Update KPIs
+      if (chosen && chosen.plan_details) {
+        const ports = chosen.plan_details.ports || [];
+        document.getElementById("kpi-route").innerText = `${ports[0] || '-'} ➔ ${ports[ports.length - 1] || '-'}`;
+        document.getElementById("kpi-vessel").innerText = `Mode: ${chosen.plan_details.mode || '-'}`;
+        
+        // Find raw values
+        document.getElementById("kpi-value").innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(data.plans[0]?.cost_impact || 0);
+        document.getElementById("kpi-carrier").innerText = `Est. Delay: ${(chosen.delay_impact_hours / 24).toFixed(1)} days`;
+
+        // Risk
+        const riskPct = Math.round(chosen.risk_of_plan * 100);
+        document.getElementById("kpi-risk").innerText = `${riskPct}%`;
+        document.getElementById("kpi-risk-lbl").innerText = `Score Profile: ${chosen.risk_of_plan > 0.5 ? 'HIGH RISK' : 'STABLE'}`;
+        
+        // Optimal action
+        document.getElementById("kpi-action").innerText = chosen.scenario.toUpperCase();
+        document.getElementById("kpi-action-meta").innerText = `Utility: ${chosen.utility?.toFixed(3)}`;
+      }
+
+      // Render plans grid
+      const grid = document.getElementById("plans-grid");
+      if (!plans || plans.length === 0) {
+        grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><p>No recovery plans generated.</p></div>`;
+        document.getElementById("explainability-panel").style.display = "none";
+        return;
+      }
+
+      let gridHtml = "";
+      plans.forEach(plan => {
+        const isPlanChosen = plan.chosen;
+        const details = plan.plan_details || {};
+        const isChosenClass = isPlanChosen ? "chosen" : "";
+        const costStr = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(plan.cost_impact);
+        const delayDays = (plan.delay_impact_hours / 24).toFixed(1);
+
+        let legsHtml = "";
+        if (details.legs && details.legs.length > 0) {
+          details.legs.forEach(leg => {
+            legsHtml += `
+              <div class="leg-item">
+                <span class="leg-mode">${leg.mode}</span>
+                <span>${leg.src} ➔ ${leg.dst} (${Math.round(leg.hours)} hrs)</span>
+              </div>`;
+          });
+        } else if (plan.scenario === "wait") {
+          legsHtml = `<div class="leg-item"><span>No deviation. Ship will wait out congestion.</span></div>`;
+        }
+
+        gridHtml += `
+          <div class="plan-card ${isChosenClass}">
+            ${isPlanChosen ? '<div class="chosen-badge">Optimal Plan</div>' : ''}
+            <div class="plan-header">
+              <span class="plan-scenario">${plan.scenario}</span>
+              <div class="plan-utility">
+                <span class="plan-utility-val">${plan.utility?.toFixed(3) || '0.000'}</span>
+                <span class="plan-utility-lbl">Utility Score</span>
+              </div>
+            </div>
+            
+            <div class="plan-stats">
+              <div class="stat-box">
+                <span class="stat-lbl">Cost Impact</span>
+                <span class="stat-val ${plan.cost_impact > 0 ? 'warning' : 'success'}">${costStr}</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-lbl">Delay Hours</span>
+                <span class="stat-val warning">${Math.round(plan.delay_impact_hours)} hrs (${delayDays}d)</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-lbl">Risk Rating</span>
+                <span class="stat-val accent">${Math.round(plan.risk_of_plan * 100)}%</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-lbl">Transit Mode</span>
+                <span class="stat-val" style="text-transform: capitalize;">${details.mode || 'sea'}</span>
+              </div>
+            </div>
+
+            <div class="plan-legs">
+              <span class="stat-lbl" style="margin-bottom: 0.2rem;">Route Legs</span>
+              ${legsHtml}
+            </div>
+          </div>`;
+      });
+      grid.innerHTML = gridHtml;
+
+      // Show explainability trace
+      const explainPanel = document.getElementById("explainability-panel");
+      const explainText = document.getElementById("explain-trace-text");
+      if (explanation && explanation.reason) {
+        explainPanel.style.display = "block";
+        explainText.innerText = explanation.reason;
+      } else {
+        explainPanel.style.display = "none";
+      }
+    }
+
+    // Refresh disruptions list
+    async function refreshDisruptions() {
+      try {
+        const res = await fetch("/webhooks/disruptions", { headers: HEADERS });
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        const container = document.getElementById("disruptions-container");
+        if (data.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <p>No active disruption signals injected yet.</p>
+            </div>`;
+          return;
+        }
+
+        let html = "";
+        data.forEach(item => {
+          const typeFormatted = item.event_type.replace("_", " ");
+          const timeStr = new Date(item.created_at || item.start_time).toLocaleString();
+          html += `
+            <div class="disruption-item">
+              <div>
+                <span class="disruption-type">${typeFormatted}</span>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
+                  Confidence: ${Math.round(item.confidence * 100)}% | Severity: ${Math.round(item.severity * 100)}% | ${timeStr}
+                </div>
+              </div>
+              <span class="disruption-port">${item.affected_ports?.join(", ") || 'Global'}</span>
+            </div>`;
+        });
+        container.innerHTML = html;
+      } catch (err) {
+        console.error("Error fetching disruptions:", err);
+      }
+    }
+
+    // Handle Upload Shipment Form Submit
+    async function handleUpload(e) {
+      e.preventDefault();
+      const csvContent = document.getElementById("csv-payload").value.trim();
+      if (!csvContent) {
+        alert("Please load or paste CSV content.");
+        return;
+      }
+
+      // Convert CSV content to Blob & UploadFile structure
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const formData = new FormData();
+      formData.append("file", blob, "sample.csv");
+
+      try {
+        const res = await fetch("/shipments/upload", {
+          method: "POST",
+          headers: {
+            "X-API-Key": API_KEY
+          },
+          body: formData
+        });
+
+        if (res.ok) {
+          const result = await res.json();
+          alert(`Successfully uploaded ${result.shipment_ids.length} shipments!`);
+          document.getElementById("csv-payload").value = "";
+          
+          // Refresh list & switch back to analytics
+          await refreshShipments();
+          if (result.shipment_ids.length > 0) {
+            selectShipment(result.shipment_ids[0]);
+          }
+          switchTab("analytics");
+        } else {
+          const err = await res.json();
+          alert(`Upload failed: ${err.detail || 'Unknown error'}`);
+        }
+      } catch (err) {
+        alert("Network error: Upload failed.");
+      }
+    }
+
+    // Handle Inject Disruption Form Submit
+    async function handleDisruption(e) {
+      e.preventDefault();
+      
+      const payload = {
+        event_type: document.getElementById("event-type").value,
+        source: "manual",
+        confidence: parseFloat(document.getElementById("confidence").value),
+        severity: parseFloat(document.getElementById("severity").value),
+        start_time: new Date().toISOString(),
+        affected_ports: [document.getElementById("affected-port").value.trim().toUpperCase()],
+        affected_vessels: [],
+        raw_data: {}
+      };
+
+      try {
+        const res = await fetch("/webhooks/disruption", {
+          method: "POST",
+          headers: HEADERS,
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          alert("Disruption successfully injected and processed!");
+          refreshDisruptions();
+          // If we have an active shipment, reload it to re-assess plans
+          if (activeShipmentId) {
+            selectShipment(activeShipmentId);
+          }
+          switchTab("analytics");
+        } else {
+          const err = await res.json();
+          alert(`Failed to inject disruption: ${err.detail || 'Unknown error'}`);
+        }
+      } catch (err) {
+        alert("Network error: Disruption injection failed.");
+      }
+    }
+  </script>
+</body>
+</html>

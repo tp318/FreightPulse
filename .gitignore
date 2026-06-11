@@ -1,3 +1,4 @@
+ HEAD
 # Node modules
 node_modules/
 
@@ -12,3 +13,17 @@ env/
 .env
 .env.local
 .env.*.local
+=======
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+test_lrie.db
+*.log
+dist/
+build/
+*.egg-info/
+4a4b815 (Move LRIE engine into backend folder)
