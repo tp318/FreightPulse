@@ -3,7 +3,7 @@ import pathlib
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-from app.api import disruptions, health, shipments
+from app.api import disruptions, health, shipments, unified
 from app.core.neo4j import close_neo4j_driver
 
 logger = structlog.get_logger()
@@ -27,6 +27,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(shipments.router)
     app.include_router(disruptions.router)
+    app.include_router(unified.router)
 
     @app.get("/", response_class=HTMLResponse)
     async def get_dashboard():
