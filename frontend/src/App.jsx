@@ -14,8 +14,8 @@ import {
 import CSVUpload from './components/CSVUpload.jsx';
 import ShipmentTable from './components/ShipmentTable.jsx';
 import AlertBanner from './components/AlertBanner.jsx';
-import SignalTimeline from './components/SignalTimeline.jsx';
-import LiveFeedPanel from './components/LiveFeedPanel.jsx';
+import ShipmentMap from './components/ShipmentMap.jsx';
+import FleetSummary from './components/FleetSummary.jsx';
 import BriefPanel from './components/BriefPanel.jsx';
 
 function App() {
@@ -50,7 +50,6 @@ function App() {
 
   // CSV upload handler
   const handleUpload = useCallback((parsedShipments) => {
-    // Map CSV data to match expected shape with defaults from mock
     const mapped = parsedShipments.map((row, idx) => {
       const mockMatch = MOCK_DATA.shipments.find(
         (s) => s.id === row.id || s.id === row.ID
@@ -90,7 +89,6 @@ function App() {
     try {
       const simResult = await simulateEvent();
 
-      // Re-poll
       const [alertsData, signalsData, shipmentsData] = await Promise.all([
         fetchAlerts(),
         fetchSignals(),
@@ -235,13 +233,13 @@ function App() {
 
       {/* ─── MAIN GRID ─── */}
       <main className="main-grid">
-        {/* LEFT COLUMN */}
+        {/* LEFT COLUMN — Map + Fleet Summary */}
         <aside className="flex flex-col" style={{ overflow: 'hidden' }}>
-          <LiveFeedPanel signals={signals} />
-          <SignalTimeline events={MOCK_DATA.timeline} />
+          <ShipmentMap shipments={shipments} alerts={alerts} />
+          <FleetSummary shipments={shipments} alerts={alerts} signals={signals} />
         </aside>
 
-        {/* RIGHT COLUMN */}
+        {/* RIGHT COLUMN — CSV upload or shipment table + brief */}
         <section
           className="flex flex-col"
           style={{
