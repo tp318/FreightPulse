@@ -1,187 +1,231 @@
-import { useEffect, useRef } from "react";
+// frontend/src/components/ShipmentMap.jsx
+// Real interactive world map using Leaflet + OpenStreetMap (no API key needed)
 
-// Port coordinates for known Indian export ports and destination ports
+import { useEffect, useRef, useMemo } from 'react';
+
+// Port coordinates (lat, lng)
 const PORT_COORDS = {
-  // Origin ports (India)
-  mundra:      { lat: 22.8390, lng: 69.7082 },
-  jnpt:        { lat: 18.9490, lng: 72.9510 },
-  chennai:     { lat: 13.0827, lng: 80.2707 },
-  nhava:       { lat: 18.9490, lng: 72.9510 },
-  kolkata:     { lat: 22.5726, lng: 88.3639 },
-  // Destination ports (Europe)
-  rotterdam:   { lat: 51.9244, lng: 4.4777  },
-  hamburg:     { lat: 53.5753, lng: 9.8689  },
-  felixstowe:  { lat: 51.9600, lng: 1.3500  },
-  antwerp:     { lat: 51.2213, lng: 4.4051  },
-  // Asia
-  singapore:   { lat: 1.3521,  lng: 103.8198},
-  dubai:       { lat: 25.2048, lng: 55.2708 },
+  // India
+  'mundra':         [22.84, 69.70],
+  'jnpt':           [18.95, 72.95],
+  'nhava sheva':    [18.95, 72.95],
+  'chennai':        [13.08, 80.27],
+  'kolkata':        [22.57, 88.36],
+  'mumbai':         [18.93, 72.83],
+  'kochi':          [9.93,  76.26],
+  'visakhapatnam':  [17.68, 83.28],
+  'mangalore':      [12.87, 74.88],
+  'tuticorin':      [8.76,  78.13],
+  'paradip':        [20.32, 86.61],
+  'kandla':         [23.03, 70.22],
+  // Europe
+  'rotterdam':      [51.90, 4.48],
+  'hamburg':        [53.55, 9.97],
+  'antwerp':        [51.23, 4.40],
+  'felixstowe':     [51.96, 1.35],
+  'amsterdam':      [52.37, 4.90],
+  'le havre':       [49.49, 0.11],
+  'bremen':         [53.08, 8.80],
+  // Middle East
+  'dubai':          [25.20, 55.27],
+  'jebel ali':      [24.99, 55.06],
+  'doha':           [25.28, 51.53],
+  'muscat':         [23.61, 58.59],
+  // Southeast Asia
+  'singapore':      [1.29,  103.85],
+  'port klang':     [3.00,  101.39],
+  'jakarta':        [-6.12, 106.84],
+  'bangkok':        [13.76, 100.50],
+  'colombo':        [6.93,  79.85],
+  // East Asia
+  'shanghai':       [31.23, 121.47],
+  'hong kong':      [22.30, 114.17],
+  'busan':          [35.10, 129.04],
+  'tokyo':          [35.65, 139.75],
+  // Americas
+  'new york':       [40.71, -74.01],
+  'los angeles':    [33.73, -118.26],
+  'houston':        [29.76, -95.37],
+  // Africa
+  'durban':         [-29.87, 31.03],
+  'cape town':      [-33.92, 18.42],
+  // Default
+  'default':        [20.00, 77.00],
 };
 
-function resolvePort(name) {
-  if (!name) return null;
-  const key = name.toLowerCase().trim();
-  for (const [port, coords] of Object.entries(PORT_COORDS)) {
-    if (key.includes(port)) return coords;
+function getCoords(portName) {
+  if (!portName) return PORT_COORDS['default'];
+  const key = portName.toLowerCase().trim();
+  if (PORT_COORDS[key]) return PORT_COORDS[key];
+  for (const k of Object.keys(PORT_COORDS)) {
+    if (key.includes(k) || k.includes(key)) return PORT_COORDS[k];
   }
-  return null;
+  return PORT_COORDS['default'];
 }
 
-function severityColor(severity) {
-  if (!severity) return "#64748b";
-  switch (severity.toLowerCase()) {
-    case "critical": return "#ef4444";
-    case "high":     return "#f97316";
-    case "watch":    return "#eab308";
-    default:         return "#22c55e";
+function getSeverityColor(severity) {
+  switch (severity?.toLowerCase()) {
+    case 'critical': return '#ef4444';
+    case 'high':     return '#f97316';
+    case 'watch':    return '#eab308';
+    default:         return '#22c55e';
   }
 }
 
 export default function ShipmentMap({ shipments = [], alerts = [] }) {
   const mapRef    = useRef(null);
-  const leafletRef = useRef(null);
+  const mapObj    = useRef(null);
+  const layersRef = useRef([]);
 
-  useEffect(() => {
-    // Leaflet injects styles dynamically — make sure the CSS link is present
-    if (!document.getElementById("leaflet-css")) {
-      const link = document.createElement("link");
-      link.id   = "leaflet-css";
-      link.rel  = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(link);
-    }
-
-    if (!window.L) {
-      // Leaflet not yet on window — should be available via npm import in Vite
-      // If using npm: import L from 'leaflet' at the top instead
-      console.warn("Leaflet not found on window. Make sure it is imported.");
-      return;
-    }
-
-    if (leafletRef.current) {
-      leafletRef.current.remove();
-      leafletRef.current = null;
-    }
-
-    const L = window.L;
-
-    const map = L.map(mapRef.current, {
-      center: [25, 55],
-      zoom: 3,
-      zoomControl: true,
-      attributionControl: true,
-    });
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 18,
-    }).addTo(map);
-
-    leafletRef.current = map;
-
-    // Build a severity lookup by shipment ID from alerts
-    const severityMap = {};
+  const severityMap = useMemo(() => {
+    const map = {};
     alerts.forEach((a) => {
       (a.affectedShipmentIds || []).forEach((id) => {
-        // Pick the worst severity if a shipment appears in multiple alerts
-        const existing = severityMap[id];
-        const rank = (s) => ({ critical: 3, high: 2, watch: 1 }[s?.toLowerCase()] ?? 0);
-        if (!existing || rank(a.severity) > rank(existing)) {
-          severityMap[id] = a.severity;
-        }
+        map[id] = a.severity;
       });
     });
+    return map;
+  }, [alerts]);
 
-    shipments.forEach((s) => {
-      const origin = resolvePort(s.origin);
-      const dest   = resolvePort(s.destination);
-      const color  = severityColor(s.alertSeverity || severityMap[s.id]);
+  // Init map once
+  useEffect(() => {
+    if (mapObj.current) return;
 
-      if (origin) {
-        const circle = L.circleMarker([origin.lat, origin.lng], {
-          radius: 7,
-          fillColor: color,
-          color: "#fff",
-          weight: 2,
-          fillOpacity: 0.95,
-        }).addTo(map);
+    import('leaflet').then((L) => {
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
 
-        circle.bindPopup(`
-          <div style="font-family:sans-serif;min-width:180px">
-            <strong style="font-size:13px">${s.id}</strong><br/>
-            <span style="color:#64748b;font-size:11px">${s.origin} → ${s.destination}</span><br/>
-            <span style="font-size:11px">Vessel: <b>${s.vessel || "—"}</b></span><br/>
-            <span style="font-size:11px">ETA: <b>${s.eta || "—"}</b></span><br/>
-            <span style="font-size:11px">Risk Score: <b>${s.riskScore ?? "—"}</b></span>
-          </div>
-        `);
-      }
+      const map = L.map(mapRef.current, {
+        center:             [20, 60],
+        zoom:               3,
+        zoomControl:        true,
+        scrollWheelZoom:    true,
+        attributionControl: false,
+      });
 
-      if (origin && dest) {
-        // Draw a curved geodesic-ish line using a midpoint offset
-        const midLat = (origin.lat + dest.lat) / 2 - 5;
-        const midLng = (origin.lng + dest.lng) / 2;
+      // CartoDB dark matter tiles — free, no API key
+      L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        { maxZoom: 10 }
+      ).addTo(map);
 
-        const latlngs = [
-          [origin.lat, origin.lng],
-          [midLat, midLng],
-          [dest.lat, dest.lng],
-        ];
-
-        L.polyline(latlngs, {
-          color,
-          weight: 2,
-          opacity: 0.6,
-          dashArray: "6,4",
-          smoothFactor: 2,
-        }).addTo(map);
-
-        // Destination marker (hollow)
-        L.circleMarker([dest.lat, dest.lng], {
-          radius: 5,
-          fillColor: "#1e293b",
-          color,
-          weight: 2,
-          fillOpacity: 0.9,
-        }).addTo(map)
-          .bindPopup(`<strong style="font-size:12px">${s.destination}</strong><br/><span style="font-size:11px;color:#64748b">Destination port</span>`);
-      }
+      mapObj.current = map;
     });
 
     return () => {
-      if (leafletRef.current) {
-        leafletRef.current.remove();
-        leafletRef.current = null;
+      if (mapObj.current) {
+        mapObj.current.remove();
+        mapObj.current = null;
       }
     };
-  }, [shipments, alerts]);
+  }, []);
+
+  // Draw routes whenever shipments or alerts change
+  useEffect(() => {
+    if (!mapObj.current) return;
+
+    import('leaflet').then((L) => {
+      layersRef.current.forEach((layer) => layer.remove());
+      layersRef.current = [];
+
+      shipments.forEach((s) => {
+        const originCoords = getCoords(s.origin);
+        const destCoords   = getCoords(s.destination);
+        const severity     = severityMap[s.id] || s.alertSeverity || 'monitoring';
+        const color        = getSeverityColor(severity);
+
+        // Origin pin — green
+        const originMarker = L.circleMarker(originCoords, {
+          radius: 7, fillColor: '#22c55e', color: '#16a34a',
+          weight: 2, opacity: 1, fillOpacity: 0.9,
+        }).bindTooltip(`📍 ${s.origin} (Origin) — ${s.vessel || s.id}`, {
+          direction: 'top', className: 'leaflet-dark-tooltip',
+        });
+
+        // Destination pin — severity color
+        const destMarker = L.circleMarker(destCoords, {
+          radius: 7, fillColor: color, color,
+          weight: 2, opacity: 1, fillOpacity: 0.9,
+        }).bindTooltip(
+          `🎯 ${s.destination} — ETA: ${s.eta || '—'} | ${severity.toUpperCase()}`,
+          { direction: 'top', className: 'leaflet-dark-tooltip' }
+        );
+
+        // Route line
+        const routeLine = L.polyline([originCoords, destCoords], {
+          color, weight: 1.5, opacity: 0.6, dashArray: '6 5',
+        });
+
+        originMarker.addTo(mapObj.current);
+        destMarker.addTo(mapObj.current);
+        routeLine.addTo(mapObj.current);
+        layersRef.current.push(originMarker, destMarker, routeLine);
+      });
+
+      // Fit bounds to all markers
+      if (shipments.length > 0) {
+        const allCoords = shipments.flatMap((s) => [
+          getCoords(s.origin),
+          getCoords(s.destination),
+        ]);
+        mapObj.current.fitBounds(allCoords, { padding: [30, 30] });
+      }
+    });
+  }, [shipments, severityMap]);
 
   return (
-    <div className="bg-slate-900 rounded-xl border border-slate-700 overflow-hidden">
+    <div
+      style={{
+        background: 'var(--bg-surface)',
+        borderBottom: '1px solid var(--border)',
+        padding: '12px 16px 8px',
+        flexShrink: 0,
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
-        <div className="flex items-center gap-2">
-          <span className="text-slate-100 font-semibold text-sm">Live Fleet Map</span>
-          <span className="text-xs text-slate-400">{shipments.length} shipment{shipments.length !== 1 ? "s" : ""} tracked</span>
-        </div>
-        {/* Legend */}
-        <div className="flex items-center gap-3 text-xs text-slate-400">
-          {[
-            { label: "Critical", color: "#ef4444" },
-            { label: "High",     color: "#f97316" },
-            { label: "Watch",    color: "#eab308" },
-            { label: "OK",       color: "#22c55e" },
-          ].map(({ label, color }) => (
-            <span key={label} className="flex items-center gap-1">
-              <span style={{ background: color }} className="inline-block w-2 h-2 rounded-full" />
-              {label}
-            </span>
-          ))}
+      <div className="flex items-center justify-between" style={{ marginBottom: '8px' }}>
+        <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>
+          Shipment Routes
+        </span>
+        <div className="flex items-center gap-3" style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} /> Origin
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} /> At risk
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} /> Safe
+          </span>
         </div>
       </div>
 
       {/* Map container */}
-      <div ref={mapRef} style={{ height: "340px", width: "100%" }} />
+      <div
+        ref={mapRef}
+        style={{ width: '100%', height: '280px', borderRadius: '6px', overflow: 'hidden', background: '#0d1f35' }}
+      />
+
+      {/* Leaflet CSS */}
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+      {/* Dark tooltip style */}
+      <style>{`
+        .leaflet-dark-tooltip {
+          background: #1e293b;
+          border: 1px solid #334155;
+          color: #e2e8f0;
+          font-size: 11px;
+          padding: 4px 8px;
+          border-radius: 4px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+        .leaflet-dark-tooltip::before { border-top-color: #334155; }
+      `}</style>
     </div>
   );
 }
