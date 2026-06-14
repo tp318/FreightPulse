@@ -30,10 +30,11 @@ function App() {
   const [simulateLoading, setSimulateLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [showTutorial, setShowTutorial] = useState(() => {
-    // Clear old tutorial keys so users always see the latest tour
+    // Always start the tutorial automatically on page load
     localStorage.removeItem('fp_tutorial_dismissed');
     localStorage.removeItem('fp_tutorial_v2_dismissed');
-    return shouldShowTutorial();
+    localStorage.removeItem('fp_tutorial_v3_dismissed');
+    return true;
   });
 
   // Polling for alerts and signals
