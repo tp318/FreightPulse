@@ -50,27 +50,47 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // CSV upload handler
+  // CSV upload handler — preserve raw CSV data exactly as uploaded
   const handleUpload = useCallback((parsedShipments) => {
     const mapped = parsedShipments.map((row, idx) => {
-      const mockMatch = MOCK_DATA.shipments.find(
-        (s) => s.id === row.id || s.id === row.ID
-      );
+      // Normalize common column name variants (case-insensitive)
+      const get = (...keys) => {
+        for (const k of keys) {
+          if (row[k] !== undefined && row[k] !== '') return row[k];
+          // Try lowercase
+          const lk = k.toLowerCase();
+          for (const rk of Object.keys(row)) {
+            if (rk.toLowerCase() === lk && row[rk] !== undefined && row[rk] !== '') return row[rk];
+          }
+        }
+        return undefined;
+      };
+
+      const cargoRaw = get('cargoValue','CargoValue','cargo_value','Cargo Value','cargo value','value','Value');
+      const riskRaw  = get('riskScore','RiskScore','risk_score','Risk Score','risk score','risk');
+
       return {
-        id: row.id || row.ID || `SHP-${String(idx + 1).padStart(3, '0')}`,
-        origin: row.origin || row.Origin || '',
-        destination: row.destination || row.Destination || '',
-        vessel: row.vessel || row.Vessel || '',
-        eta: row.eta || row.ETA || '',
-        cargoValue: Number(row.cargoValue || row.CargoValue || row.cargo_value || 0),
-        forwarderName: row.forwarderName || row.ForwarderName || '',
-        forwarderPhone: row.forwarderPhone || row.ForwarderPhone || '',
-        alertSeverity: mockMatch?.alertSeverity ?? (row.alertSeverity || null),
-        riskScore: mockMatch?.riskScore ?? Number(row.riskScore || row.RiskScore || 0),
+        id:             get('id','ID','shipmentId','ShipmentId') || `SHP-${String(idx + 1).padStart(3, '0')}`,
+        origin:         get('origin','Origin','from','From','port_origin','departure') || '',
+        destination:    get('destination','Destination','to','To','port_dest','arrival') || '',
+        vessel:         get('vessel','Vessel','vessel_name','VesselName','ship','Ship') || '',
+        eta:            get('eta','ETA','Eta','arrival_date','ArrivalDate','expected_arrival') || '',
+        cargoValue:     cargoRaw !== undefined ? Number(String(cargoRaw).replace(/[^0-9.-]/g,'')) || 0 : 0,
+        forwarderName:  get('forwarderName','ForwarderName','forwarder_name','forwarder','Forwarder') || '',
+        forwarderPhone: get('forwarderPhone','ForwarderPhone','forwarder_phone','phone','Phone') || '',
+        alertSeverity:  get('alertSeverity','AlertSeverity','alert_severity','severity','Severity') || null,
+        riskScore:      riskRaw !== undefined ? Number(String(riskRaw).replace(/[^0-9.-]/g,'')) || 0 : 0,
+        // Preserve all original raw fields for extra columns
+        _raw: row,
       };
     });
     setShipments(mapped);
   }, []);
+
+  const handleChangeCSV = useCallback(() => {
+    setShipments([]);
+  }, []);
+
 
   // Brief generation handler
   const handleGenerateBrief = useCallback(async () => {
@@ -308,7 +328,28 @@ function App() {
             {shipments.length === 0 ? (
               <CSVUpload onUpload={handleUpload} />
             ) : (
-              <ShipmentTable shipments={shipments} alerts={alerts} />
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                    {shipments.length} shipments loaded
+                  </span>
+                  <button
+                    onClick={handleChangeCSV}
+                    style={{
+                      fontSize: '11px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg-elevated)',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ↑ Upload new CSV
+                  </button>
+                </div>
+                <ShipmentTable shipments={shipments} alerts={alerts} />
+              </>
             )}
             <BriefPanel brief={brief} onClose={() => setBrief(null)} />
           </section>
