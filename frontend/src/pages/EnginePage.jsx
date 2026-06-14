@@ -52,7 +52,7 @@ const PORT_OPTIONS = [
 const INITIAL_STAGES = () =>
   Object.fromEntries(STAGE_DEFS.map((s) => [s.id, { status: 'idle', data: null }]));
 
-export default function EnginePage() {
+export default function EnginePage({ promptSimulate, onPromptClear }) {
   const [stages, setStages] = useState(INITIAL_STAGES);
   const [simType, setSimType] = useState('strike');
   const [simPort, setSimPort] = useState('NLRTM');
@@ -62,6 +62,13 @@ export default function EnginePage() {
   const [llmStream, setLlmStream] = useState({ chunk: '', accumulated: '' });
   const [isStreaming, setIsStreaming] = useState(false);
   const logRef = useRef([]);
+
+  // Auto-scroll to the button if prompted
+  useEffect(() => {
+    if (promptSimulate) {
+      document.getElementById('btn-simulate-disruption')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [promptSimulate]);
 
   // WebSocket message handler
   const handleWsMessage = useCallback((msg) => {
@@ -236,46 +243,80 @@ export default function EnginePage() {
               </select>
             </div>
 
-            <button
-              id="btn-simulate-disruption"
-              onClick={handleSimulate}
-              disabled={simLoading}
-              style={{
-                padding: '8px 20px',
-                borderRadius: '8px',
-                border: 'none',
-                background: simLoading ? 'var(--bg-elevated)' : 'var(--accent-green)',
-                color: simLoading ? 'var(--text-tertiary)' : '#fff',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: simLoading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease',
-                boxShadow: simLoading ? 'none' : '0 0 16px rgba(29,158,117,0.4)',
-                fontFamily: 'var(--font-sans)',
-              }}
-            >
-              {simLoading ? (
-                <>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      width: '14px',
-                      height: '14px',
-                      border: '2px solid var(--border-accent)',
-                      borderTopColor: 'var(--text-secondary)',
-                      borderRadius: '50%',
-                      animation: 'spin-slow 0.8s linear infinite',
-                    }}
-                  />
-                  Injecting…
-                </>
-              ) : (
-                '⚡ Simulate Disruption'
+            <div style={{ position: 'relative' }}>
+              {promptSimulate && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '100%',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  marginBottom: '12px',
+                  background: 'var(--accent-green)',
+                  color: '#fff',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                  animation: 'fp-bounce-down 1s infinite alternate',
+                  boxShadow: '0 4px 12px rgba(29,158,117,0.4)',
+                  zIndex: 10,
+                }}>
+                  Click here to start!
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    border: '6px solid transparent',
+                    borderTopColor: 'var(--accent-green)',
+                  }} />
+                </div>
               )}
-            </button>
+              <button
+                id="btn-simulate-disruption"
+                onClick={() => {
+                  if (onPromptClear) onPromptClear();
+                  handleSimulate();
+                }}
+                disabled={simLoading}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  border: promptSimulate ? '2px solid #fff' : 'none',
+                  background: simLoading ? 'var(--bg-elevated)' : 'var(--accent-green)',
+                  color: simLoading ? 'var(--text-tertiary)' : '#fff',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: simLoading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease',
+                  boxShadow: promptSimulate ? '0 0 0 4px rgba(29,158,117,0.4)' : (simLoading ? 'none' : '0 0 16px rgba(29,158,117,0.4)'),
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                {simLoading ? (
+                  <>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: '14px',
+                        height: '14px',
+                        border: '2px solid var(--border-accent)',
+                        borderTopColor: 'var(--text-secondary)',
+                        borderRadius: '50%',
+                        animation: 'spin-slow 0.8s linear infinite',
+                      }}
+                    />
+                    Injecting…
+                  </>
+                ) : (
+                  '⚡ Simulate Disruption'
+                )}
+              </button>
+            </div>
           </div>
 
           {simError && (

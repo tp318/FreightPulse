@@ -36,6 +36,7 @@ function App() {
     localStorage.removeItem('fp_tutorial_v3_dismissed');
     return true;
   });
+  const [promptSimulate, setPromptSimulate] = useState(false);
 
   // Polling for alerts and signals
   useEffect(() => {
@@ -127,37 +128,10 @@ function App() {
     }
   }, [alerts]);
 
-  // Simulate handler (dashboard)
-  const handleSimulate = useCallback(async () => {
-    setSimulateLoading(true);
-    try {
-      const simResult = await simulateEvent();
-
-      const [alertsData, signalsData, shipmentsData] = await Promise.all([
-        fetchAlerts(),
-        fetchSignals(),
-        fetchShipments(),
-      ]);
-
-      setAlerts(alertsData);
-      setSignals((prev) => {
-        const newSignal = simResult?.signal || signalsData[0];
-        if (newSignal) {
-          return [newSignal, ...prev.filter((s) => s.id !== newSignal.id)];
-        }
-        return signalsData;
-      });
-
-      if (shipmentsData && shipmentsData.length > 0) {
-        setShipments(shipmentsData);
-      }
-
-      setLastUpdated(new Date());
-    } catch (e) {
-      console.error('Simulate error:', e);
-    } finally {
-      setSimulateLoading(false);
-    }
+  // Simulate handler (dashboard) — now navigates to Engine
+  const handleDashboardSimulateClick = useCallback(() => {
+    setActiveView('engine');
+    setPromptSimulate(true);
   }, []);
 
   // Derive active alert
@@ -286,35 +260,25 @@ function App() {
         {activeView === 'dashboard' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
-              onClick={handleSimulate}
-              disabled={simulateLoading}
+              onClick={handleDashboardSimulateClick}
               className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded"
               style={{
                 background: 'var(--bg-elevated)',
                 border: '1px solid var(--border)',
-                color: simulateLoading ? 'var(--text-tertiary)' : 'var(--text-primary)',
-                cursor: simulateLoading ? 'not-allowed' : 'pointer',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
                 transition: 'all 0.2s ease',
               }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent-green)';
+                e.currentTarget.style.color = 'var(--accent-green)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.color = 'var(--text-primary)';
+              }}
             >
-              {simulateLoading ? (
-                <>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      width: '12px',
-                      height: '12px',
-                      border: '2px solid var(--border-accent)',
-                      borderTopColor: 'var(--text-primary)',
-                      borderRadius: '50%',
-                      animation: 'spin 0.8s linear infinite',
-                    }}
-                  />
-                  Simulating…
-                </>
-              ) : (
-                <>⚡ Simulate Live Event</>
-              )}
+              ⚡ Simulate Live Event
             </button>
             <button
               onClick={() => { resetTutorial(); setShowTutorial(true); }}
@@ -421,7 +385,7 @@ function App() {
           </section>
         </main>
       ) : (
-        <EnginePage />
+        <EnginePage promptSimulate={promptSimulate} onPromptClear={() => setPromptSimulate(false)} />
       )}
 
       {/* Inline spinner keyframe */}
