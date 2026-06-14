@@ -30,14 +30,8 @@ def _broadcast(stage: str, status: str, data: Optional[dict] = None):
 
     # Direct WS broadcast (non-blocking)
     try:
-        from api.websocket import broadcast_stage_update
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(broadcast_stage_update(msg))
-        except RuntimeError:
-            pass  # No event loop in this thread — WS consumer will forward Kafka msg
+        from api.websocket import broadcast_sync
+        broadcast_sync(msg)
     except Exception:
         pass
 

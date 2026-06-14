@@ -28,6 +28,10 @@ async def lifespan(app: FastAPI):
     from signals.port_congestion_mock import port_congestion_polling_loop
     from core.config import settings
 
+    # ── Capture main event loop for WS broadcasts from threads ─────────────
+    from api.websocket import set_main_loop
+    set_main_loop(asyncio.get_running_loop())
+
     # ── Seed Neo4j graph ────────────────────────────────────────────────────
     try:
         from scripts.seed_neo4j import seed_if_empty

@@ -275,20 +275,12 @@ def _emit_disruption(disruption: dict):
 
     # Also broadcast to WS clients directly (for immediate UI update)
     try:
-        from api.websocket import broadcast_stage_update
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(
-                    broadcast_stage_update({
-                        "stage": "detection",
-                        "status": "complete",
-                        "data": disruption,
-                    })
-                )
-        except Exception:
-            pass
+        from api.websocket import broadcast_sync
+        broadcast_sync({
+            "stage": "detection",
+            "status": "complete",
+            "data": disruption,
+        })
     except Exception:
         pass
 

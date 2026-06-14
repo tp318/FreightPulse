@@ -12,6 +12,18 @@ logger = logging.getLogger(__name__)
 
 ws_router = APIRouter()
 
+import asyncio
+_main_loop = None
+
+def set_main_loop(loop):
+    global _main_loop
+    _main_loop = loop
+
+def broadcast_sync(message: dict):
+    """Synchronous wrapper to safely broadcast from background threads."""
+    if _main_loop and _main_loop.is_running():
+        asyncio.run_coroutine_threadsafe(broadcast_stage_update(message), _main_loop)
+
 # Set of active WebSocket connections
 _clients: Set[WebSocket] = set()
 

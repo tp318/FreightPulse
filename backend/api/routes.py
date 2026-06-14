@@ -233,18 +233,12 @@ async def simulate_disruption(req: SimulateDisruptionRequest):
 
         # Broadcast detection stage update to WS clients
         try:
-            from api.websocket import broadcast_stage_update as _bcast
-            import asyncio as _aio
-            try:
-                loop = _aio.get_event_loop()
-                if loop.is_running():
-                    loop.create_task(_bcast({
-                        "stage": "detection",
-                        "status": "complete",
-                        "data": disruption,
-                    }))
-            except Exception:
-                pass
+            from api.websocket import broadcast_sync
+            broadcast_sync({
+                "stage": "detection",
+                "status": "complete",
+                "data": disruption,
+            })
         except Exception:
             pass
 
