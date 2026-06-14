@@ -3,8 +3,10 @@ import { MOCK_DATA } from './mockData.js';
 
 const USE_MOCK = true; // flip to false when backend is running
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const api = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: API_URL,
   timeout: 8000,
 });
 
