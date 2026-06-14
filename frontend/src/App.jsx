@@ -18,6 +18,7 @@ import ShipmentMap from './components/ShipmentMap.jsx';
 import FleetSummary from './components/FleetSummary.jsx';
 import BriefPanel from './components/BriefPanel.jsx';
 import EnginePage from './pages/EnginePage.jsx';
+import TutorialOverlay, { shouldShowTutorial, resetTutorial } from './components/TutorialOverlay.jsx';
 
 function App() {
   const [activeView, setActiveView] = useState('dashboard'); // 'dashboard' | 'engine'
@@ -28,6 +29,11 @@ function App() {
   const [briefLoading, setBriefLoading] = useState(false);
   const [simulateLoading, setSimulateLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [showTutorial, setShowTutorial] = useState(() => {
+    // Clear v1 key so users who dismissed v1 see the new tour
+    localStorage.removeItem('fp_tutorial_dismissed');
+    return shouldShowTutorial();
+  });
 
   // Polling for alerts and signals
   useEffect(() => {
@@ -260,42 +266,86 @@ function App() {
           </span>
         </div>
 
-        {/* Right: action button */}
+        {/* Right: action buttons */}
         {activeView === 'dashboard' && (
-          <button
-            onClick={handleSimulate}
-            disabled={simulateLoading}
-            className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded"
-            style={{
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border)',
-              color: simulateLoading ? 'var(--text-tertiary)' : 'var(--text-primary)',
-              cursor: simulateLoading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {simulateLoading ? (
-              <>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: '12px',
-                    height: '12px',
-                    border: '2px solid var(--border-accent)',
-                    borderTopColor: 'var(--text-primary)',
-                    borderRadius: '50%',
-                    animation: 'spin 0.8s linear infinite',
-                  }}
-                />
-                Simulating…
-              </>
-            ) : (
-              <>⚡ Simulate Live Event</>
-            )}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={handleSimulate}
+              disabled={simulateLoading}
+              className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded"
+              style={{
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                color: simulateLoading ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                cursor: simulateLoading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {simulateLoading ? (
+                <>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '12px',
+                      height: '12px',
+                      border: '2px solid var(--border-accent)',
+                      borderTopColor: 'var(--text-primary)',
+                      borderRadius: '50%',
+                      animation: 'spin 0.8s linear infinite',
+                    }}
+                  />
+                  Simulating…
+                </>
+              ) : (
+                <>⚡ Simulate Live Event</>
+              )}
+            </button>
+            <button
+              onClick={() => { resetTutorial(); setShowTutorial(true); }}
+              title="Open tutorial guide"
+              style={{
+                padding: '5px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-elevated)',
+                color: 'var(--text-tertiary)',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontFamily: 'var(--font-sans)',
+                display: 'flex', alignItems: 'center', gap: '5px',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent-green)'; e.currentTarget.style.borderColor = 'var(--accent-green)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+            >
+              <span style={{ fontSize: '13px' }}>❓</span> Tour
+            </button>
+          </div>
         )}
+
         {activeView === 'engine' && (
-          <div style={{ width: '140px' }} /> // spacer to balance logo
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={() => { resetTutorial(); setShowTutorial(true); }}
+              title="Open tutorial"
+              style={{
+                padding: '5px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-elevated)',
+                color: 'var(--text-tertiary)',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontFamily: 'var(--font-sans)',
+                display: 'flex', alignItems: 'center', gap: '5px',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent-green)'; e.currentTarget.style.borderColor = 'var(--accent-green)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+            >
+              <span style={{ fontSize: '13px' }}>❓</span> Tour
+            </button>
+          </div>
         )}
       </header>
 
@@ -364,6 +414,11 @@ function App() {
           to { transform: rotate(360deg); }
         }
       `}</style>
+
+      {/* ─── Tutorial Overlay ─── */}
+      {showTutorial && (
+        <TutorialOverlay onDismiss={() => setShowTutorial(false)} />
+      )}
     </div>
   );
 }

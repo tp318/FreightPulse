@@ -178,17 +178,29 @@ def trigger_decision_pipeline(disruption: dict):
 # ─── LLM call ────────────────────────────────────────────────────────────────
 
 def _run_llm(disruption: dict, ranked: list, predictions: dict, alternatives: list) -> dict:
+    """
+    LLM reasoning step.
+    When ANTHROPIC_API_KEY is not set, uses a deterministic mock that simulates
+    streaming output so the frontend pipeline animation still runs end-to-end.
+    To enable real LLM: set ANTHROPIC_API_KEY in your .env file.
+    """
     from core.config import settings
 
+    # ── Mock path (no API key required) ──────────────────────────────────────
     if not settings.anthropic_api_key:
-        logger.warning("ANTHROPIC_API_KEY not set — using fallback LLM result.")
-        return _fallback_llm_result(disruption, ranked[0] if ranked else {})
+        logger.info("ANTHROPIC_API_KEY not set — running mock LLM reasoning (demo mode).")
+        return _mock_llm_result(disruption, ranked, predictions, alternatives)
 
-    import anthropic
+    # ── Real Anthropic path ───────────────────────────────────────────────────
+    try:
+        import anthropic
+    except ImportError:
+        logger.warning("anthropic package not installed — using mock LLM result.")
+        return _mock_llm_result(disruption, ranked, predictions, alternatives)
 
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
-    top = ranked[:3]  # top 3 highest-risk shipments
+    top = ranked[:3]
     top_ids = [s.get("shipment_id") for s in top]
     top_preds = [predictions.get(sid, {}) for sid in top_ids]
 
@@ -214,10 +226,9 @@ Respond ONLY with valid JSON in this exact format:
 {{
   "decision": "reroute" | "hold" | "expedite" | "split-shipment",
   "rationale": "2-3 sentences explaining the decision",
-  "call_script": "A 2-3 sentence natural-language brief to read to the forwarder over the phone. Should mention the disruption, the most affected shipment, and the recommended action."
+  "call_script": "A 2-3 sentence natural-language brief to read to the forwarder over the phone."
 }}"""
 
-    # Stream the response
     full_text = ""
     _broadcast("llm-reasoning", "streaming", {"chunk": ""})
 
@@ -230,18 +241,12 @@ Respond ONLY with valid JSON in this exact format:
             full_text += chunk
             _broadcast("llm-reasoning", "streaming", {"chunk": chunk, "accumulated": full_text})
 
-    # Parse JSON from response
     import json, re
     try:
-        # Strip any markdown code fences
         clean = re.sub(r"```json\s*|\s*```", "", full_text).strip()
         result = json.loads(clean)
     except Exception:
-        result = {
-            "decision": "hold",
-            "rationale": full_text,
-            "call_script": full_text,
-        }
+        result = {"decision": "hold", "rationale": full_text, "call_script": full_text}
 
     _broadcast("llm-reasoning", "complete", result)
     return result
@@ -275,6 +280,73 @@ def _format_routes(alternatives: list) -> str:
             else:
                 lines.append(f"• {alt}")
     return "\n".join(lines) if lines else "No alternatives available."
+
+
+# ─── Mock LLM (no API key needed) ────────────────────────────────────────────
+
+def _mock_llm_result(disruption: dict, ranked: list, predictions: dict, alternatives: list) -> dict:
+    """
+    Deterministic mock that simulates streaming LLM output token-by-token.
+    Produces a realistic decision + rationale + call_script so the full
+    pipeline animation plays out on the frontend.
+    """
+    import time
+
+    top_shipment = ranked[0] if ranked else {}
+    dtype    = disruption.get("type", "congestion")
+    port     = disruption.get("location", {}).get("name", "Rotterdam")
+    port_code = disruption.get("location", {}).get("port_code", "NLRTM")
+    severity = disruption.get("severity", "high")
+    ship_id  = top_shipment.get("shipment_id", "SHP-001")
+    priority = top_shipment.get("priority", "critical")
+    cargo    = top_shipment.get("cargo_type", "Electronics")
+    customer = top_shipment.get("customer", "the shipper")
+
+    decision = "reroute" if dtype in ("strike", "closure", "congestion", "attack") else "hold"
+
+    # Pick the best alt route name
+    alt_name = "Port of Antwerp"
+    if alternatives:
+        alt_ports = alternatives[0].get("ports", [])
+        if len(alt_ports) >= 2:
+            last = alt_ports[-1]
+            alt_name = last.get("name", alt_name) if isinstance(last, dict) else str(last)
+
+    rationale = (
+        f"A {severity}-severity {dtype} event at {port} (code: {port_code}) is causing significant "
+        f"disruption to inbound freight. Shipment {ship_id} carrying {cargo} for {customer} "
+        f"has the highest risk exposure with a {priority} priority deadline. "
+        f"Rerouting via {alt_name} is recommended to minimise additional delay and SLA penalties."
+    )
+    call_script = (
+        f"Hello, this is FreightPulse with an urgent disruption alert. "
+        f"A {dtype} has been confirmed at {port}, severity: {severity}. "
+        f"Your shipment {ship_id} is at high risk — we recommend {decision.replace('-', ' ')} via {alt_name} immediately. "
+        f"Please log in to the FreightPulse dashboard for full details and one-click action options."
+    )
+
+    result = {
+        "decision": decision,
+        "rationale": rationale,
+        "call_script": call_script,
+    }
+
+    # Simulate streaming: broadcast chunks of the JSON token-by-token
+    import json
+    full_json = json.dumps(result, indent=2)
+    _broadcast("llm-reasoning", "streaming", {"chunk": ""})
+    chunk_size = 12
+    for i in range(0, len(full_json), chunk_size):
+        chunk = full_json[i:i + chunk_size]
+        _broadcast("llm-reasoning", "streaming", {
+            "chunk": chunk,
+            "accumulated": full_json[: i + chunk_size],
+        })
+        time.sleep(0.06)  # ~60ms per chunk → realistic typing feel
+
+    _broadcast("llm-reasoning", "complete", result)
+    logger.info(f"🤖 [MOCK LLM] Decision: {decision} | Port: {port} | Shipment: {ship_id}")
+    return result
 
 
 # ─── Fallback data ────────────────────────────────────────────────────────────

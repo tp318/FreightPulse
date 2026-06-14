@@ -158,11 +158,9 @@ async def simulate_disruption(req: SimulateDisruptionRequest):
         },
     })
 
-    # Try Kafka first (works when Redpanda is running)
-    kafka_ok = False
+    # Try to publish to Kafka (if Redpanda is running, consumers will also pick it up)
     try:
         publish("ingestion.news", fake_article, source="simulated")
-        kafka_ok = True
     except Exception:
         pass
 
@@ -177,13 +175,13 @@ async def simulate_disruption(req: SimulateDisruptionRequest):
     await broadcast_stage_update({
         "stage": "kafka",
         "status": "active",
-        "data": {"topic": "ingestion.news", "messages": 1, "kafka_available": kafka_ok},
+        "data": {"topic": "ingestion.news", "messages": 1},
     })
     await asyncio.sleep(0.2)
     await broadcast_stage_update({
         "stage": "kafka",
         "status": "complete",
-        "data": {"topics_active": ["ingestion.news", "disruption.detected", "engine.stage-updates"], "kafka_available": kafka_ok},
+        "data": {"topics_active": ["ingestion.news", "disruption.detected", "engine.stage-updates"]},
     })
 
     await broadcast_stage_update({
@@ -195,61 +193,68 @@ async def simulate_disruption(req: SimulateDisruptionRequest):
     await broadcast_stage_update({
         "stage": "storage",
         "status": "complete",
-        "data": {"neo4j": "connected" if kafka_ok else "offline-using-mock", "timescaledb": "connected" if kafka_ok else "offline-using-mock"},
+        "data": {"neo4j": "seeded-mock", "timescaledb": "seeded-mock"},
     })
 
-    # ── Direct pipeline trigger when Kafka is not running ──────────────────
-    # This ensures the full A→E decision pipeline runs for the demo regardless
-    # of whether Redpanda/Kafka is available.
-    if not kafka_ok:
-        import threading
-        from engine.alert_engine import _classify_news, _emit_disruption, _PORT_META
+    # ── Always directly trigger the full A→E decision pipeline ─────────────────
+    # confluent-kafka's produce() doesn't raise when the broker is offline —
+    # it just queues silently, so the consumer thread never sees the message.
+    # For the demo (no Docker / Redpanda), we always spawn the pipeline directly
+    # so the full 10-stage flow runs end-to-end every time Simulate is clicked.
+    import threading
+    from engine.alert_engine import _classify_news, _PORT_META
 
-        def _direct_trigger():
-            disruption = _classify_news(fake_article)
-            if not disruption:
-                # Build disruption directly from request parameters (classification fallback)
-                port_meta = _PORT_META.get(req.port_code, {"name": port_name, "lat": 51.90, "lon": 4.48})
-                disruption = {
-                    "disruption_id": str(uuid.uuid4()),
-                    "type": req.type,
-                    "severity": "high",
-                    "location": {
-                        "port_code": req.port_code,
-                        "name": port_meta["name"],
-                        "lat": port_meta["lat"],
-                        "lon": port_meta["lon"],
-                    },
-                    "description": title,
-                    "detected_at": datetime.now(timezone.utc).isoformat(),
-                    "raw_source": fake_article,
-                }
+    # Capture request values for thread closure
+    _req_type = req.type
+    _req_port_code = req.port_code
+    _title = title
+    _port_name = port_name
+    _article = fake_article
 
-            # Emit detection stage update to WebSocket clients
+    def _direct_trigger():
+        disruption = _classify_news(_article)
+        if not disruption:
+            # Classification fallback — build disruption from request params directly
+            port_meta = _PORT_META.get(_req_port_code, {"name": _port_name, "lat": 51.90, "lon": 4.48})
+            disruption = {
+                "disruption_id": str(uuid.uuid4()),
+                "type": _req_type,
+                "severity": "high",
+                "location": {
+                    "port_code": _req_port_code,
+                    "name": port_meta["name"],
+                    "lat": port_meta["lat"],
+                    "lon": port_meta["lon"],
+                },
+                "description": _title,
+                "detected_at": datetime.now(timezone.utc).isoformat(),
+                "raw_source": _article,
+            }
+
+        # Broadcast detection stage update to WS clients
+        try:
+            from api.websocket import broadcast_stage_update as _bcast
+            import asyncio as _aio
             try:
-                from api.websocket import broadcast_stage_update as _bcast
-                import asyncio as _aio
-                try:
-                    loop = _aio.get_event_loop()
-                    if loop.is_running():
-                        loop.create_task(_bcast({
-                            "stage": "detection",
-                            "status": "complete",
-                            "data": disruption,
-                        }))
-                except Exception:
-                    pass
+                loop = _aio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(_bcast({
+                        "stage": "detection",
+                        "status": "complete",
+                        "data": disruption,
+                    }))
             except Exception:
                 pass
+        except Exception:
+            pass
 
-            # Run the full A→E decision engine
-            from engine.decision import trigger_decision_pipeline
-            trigger_decision_pipeline(disruption)
+        # Run the full A→E decision engine (graph query → ML → scoring → alt-routes → LLM → call)
+        from engine.decision import trigger_decision_pipeline
+        trigger_decision_pipeline(disruption)
 
-        threading.Thread(target=_direct_trigger, daemon=True).start()
+    threading.Thread(target=_direct_trigger, daemon=True, name="fp-pipeline-sim").start()
 
     return {
-        "message": "Disruption simulation injected into ingestion.news pipeline",
+        "message": "Disruption simulation injected — full A→E pipeline running",
         "article": fake_article,
-        "kafka_used": kafka_ok,
     }

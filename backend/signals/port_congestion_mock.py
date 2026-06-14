@@ -20,8 +20,9 @@ _PORTS = [
     {"code": "SGSIN", "name": "Singapore",  "baseline_wait": 5.0,  "baseline_occupancy": 0.55},
 ]
 
-_SPIKE_CHANCE = 0.05          # 5% chance of spike per port per poll
+_SPIKE_CHANCE = 0.15          # 15% chance of spike per port per poll
 _SPIKE_MULTIPLIER = 3.5       # spike multiplier on baseline
+_first_poll = True            # guarantee a spike on first poll for demo
 
 
 async def port_congestion_polling_loop():
@@ -29,6 +30,7 @@ async def port_congestion_polling_loop():
     from kafka.producer import publish
     from db.timescale import write_port_congestion
 
+    global _first_poll
     logger.info("Port congestion mock generator started.")
     while True:
         for port in _PORTS:
@@ -36,8 +38,13 @@ async def port_congestion_polling_loop():
             noise = random.uniform(0.8, 1.2)
             avg_wait = port["baseline_wait"] * noise
 
-            # Random spike
-            if random.random() < _SPIKE_CHANCE:
+            # On first poll: guarantee Rotterdam spikes to trigger detection immediately
+            if _first_poll and port["code"] == "NLRTM":
+                avg_wait = 42.0  # well above 24h threshold
+                logger.info(
+                    f"🚨 [DEMO] Forced congestion spike on first poll: {port['name']} → {avg_wait:.1f}h wait"
+                )
+            elif random.random() < _SPIKE_CHANCE:
                 avg_wait = port["baseline_wait"] * _SPIKE_MULTIPLIER
                 logger.info(
                     f"⚠️  Port congestion spike: {port['name']} → {avg_wait:.1f}h wait"
@@ -65,4 +72,5 @@ async def port_congestion_polling_loop():
             except Exception as e:
                 logger.debug(f"Port congestion publish error: {e}")
 
+        _first_poll = False  # subsequent polls use random spike chance
         await asyncio.sleep(60)
