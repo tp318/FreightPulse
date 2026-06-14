@@ -2,24 +2,52 @@
 // Always-visible key metrics panel — derived from live shipments + alerts data
 
 export default function FleetSummary({ shipments = [], alerts = [], signals = [] }) {
-  // Derived metrics
-  const total        = shipments.length;
-  const critical     = alerts.filter((a) => a.severity === 'critical').length;
-  const high         = alerts.filter((a) => a.severity === 'high').length;
-  const atRisk       = critical + high;
-  const monitoring   = total - atRisk;
+  const total = shipments.length;
+  let critical = 0;
+  let high = 0;
+  let totalExposure = 0;
+  let highestScore = 0;
+  let highestShipment = null;
 
-  const highestScore = alerts.length
-    ? Math.max(...alerts.map((a) => a.score ?? 0))
-    : 0;
+  // Derive alert mapping for quick lookup
+  const alertMap = {};
+  alerts.forEach(a => {
+    a.affectedShipmentIds?.forEach(id => {
+      alertMap[id] = a.severity;
+    });
+  });
 
-  const highestAlert = alerts.find((a) => (a.score ?? 0) === highestScore);
+  shipments.forEach(s => {
+    const score = s.riskScore || 0;
+    if (score > highestScore) {
+      highestScore = score;
+      highestShipment = s;
+    }
 
-  const totalExposure = alerts.reduce((sum, a) => {
-    const raw = a.cost_impact || a.costImpact || '';
-    const nums = raw.replace(/[$,]/g, '').split('–').map(Number).filter(Boolean);
-    return sum + (nums[1] || nums[0] || 0);
-  }, 0);
+    const alertSev = alertMap[s.id] || s.alertSeverity;
+    const isCritical = alertSev === 'critical' || score >= 80;
+    const isHigh = alertSev === 'high' || score >= 60;
+
+    if (isCritical) {
+      critical++;
+      totalExposure += (s.cargoValue || 0);
+    } else if (isHigh) {
+      high++;
+      totalExposure += (s.cargoValue || 0);
+    }
+  });
+
+  const atRisk = critical + high;
+  const monitoring = total - atRisk;
+
+  const formatCurrency = (val) => {
+    if (!val) return '—';
+    if (val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1000) return `$${(val / 1000).toFixed(0)}k`;
+    return `$${val}`;
+  };
+
+  const highestAlert = alerts.find(a => (a.score || 0) === Math.max(...alerts.map(al => al.score || 0)));
 
   const liveSignals  = signals.length;
   const simSignals   = signals.filter((s) => s.simulated).length;
@@ -42,15 +70,15 @@ export default function FleetSummary({ shipments = [], alerts = [], signals = []
     {
       label: 'Highest Risk Score',
       value: highestScore ? `${highestScore}/100` : '—',
-      sub: highestAlert ? `${highestAlert.shipment_id || 'Unknown'}` : 'No alerts yet',
+      sub: highestShipment ? `${highestShipment.id}` : 'No shipments',
       color: highestScore >= 80 ? '#ef4444' : highestScore >= 60 ? '#f97316' : '#eab308',
       icon: '📊',
     },
     {
-      label: 'Max Cost Exposure',
-      value: totalExposure ? `$${(totalExposure / 1000).toFixed(0)}k` : '—',
-      sub: 'Across all alerts',
-      color: totalExposure > 50000 ? '#ef4444' : totalExposure > 10000 ? '#f97316' : 'var(--text-secondary)',
+      label: 'Value at Risk',
+      value: formatCurrency(totalExposure),
+      sub: 'Across exposed cargo',
+      color: totalExposure > 5000000 ? '#ef4444' : totalExposure > 0 ? '#f97316' : 'var(--text-secondary)',
       icon: '💸',
     },
     {
