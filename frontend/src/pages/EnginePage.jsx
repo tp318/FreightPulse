@@ -5,7 +5,7 @@
  * WebSocket drives card state transitions in real time.
  * "Simulate Disruption" button injects a fake event into the ingestion pipeline.
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useEngineWebSocket, simulateDisruption } from '../api/engineClient.js';
 
 import PipelineCard from '../components/engine/PipelineCard.jsx';
