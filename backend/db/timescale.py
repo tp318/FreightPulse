@@ -21,7 +21,12 @@ def _get_conn():
             import psycopg2
             from core.config import settings
 
-            _conn = psycopg2.connect(settings.timescale_database_url)
+            if settings.timescale_database_url.lower() == "none":
+                logger.info("TimescaleDB disabled via config (TIMESCALE_DATABASE_URL=none).")
+                _timescale_failed = True
+                return None
+
+            _conn = psycopg2.connect(settings.timescale_database_url, connect_timeout=2)
             _conn.autocommit = True
             _init_schema(_conn)
             logger.info("TimescaleDB connected and schema initialised.")

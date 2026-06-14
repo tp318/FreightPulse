@@ -20,9 +20,15 @@ def _get_driver():
             from neo4j import GraphDatabase
             from core.config import settings
 
+            if settings.neo4j_uri.lower() == "none":
+                logger.info("Neo4j disabled via config (NEO4J_URI=none).")
+                _neo4j_failed = True
+                return None
+
             _driver = GraphDatabase.driver(
                 settings.neo4j_uri,
                 auth=(settings.neo4j_user, settings.neo4j_password),
+                connection_timeout=2.0,
             )
             logger.info(f"Neo4j driver connected to {settings.neo4j_uri}")
         except ImportError:
