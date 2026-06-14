@@ -1,83 +1,59 @@
- HEAD
 # FreightPulse
 
-Project overview & setup guide
-=======
-# Logistics Recovery Intelligence Engine
+FreightPulse is an AI-powered logistics disruption intelligence platform. It monitors shipping routes, detects disruptions (like port strikes or severe weather), and uses an AI pipeline to recommend alternative routing and immediately notify freight forwarders.
 
-LRIE is a decision-first recovery engine for disrupted container shipments. It ingests disruption signals, scores shipment risk with a complete Bayesian CPT model, estimates no-action impact, searches counterfactual recovery paths, selects the best plan with multi-attribute utility, and emits an explainable trace.
+## 📂 Repository Structure
 
-## Run
+The project is split into two main directories:
+
+- `/frontend` — The interactive web interface.
+  - Built with React, Vite, and Tailwind CSS.
+  - Contains the Command Dashboard (maps, metrics) and the Engine View (real-time 10-stage AI pipeline visualisation).
+- `/backend` — The core engine and API layer.
+  - Built with Python and FastAPI.
+  - Includes ingestion workers, the AI decision engine (with Anthropic Claude integration), graph query layers (Neo4j), and WebSocket broadcasters for real-time frontend updates.
+
+## 🚀 Setup Instructions
+
+### 1. Environment Variables
+Create a `.env` file in the root of the project. You can copy `.env.example` if it exists, or set the following basic keys:
+
+```env
+# Optional: Enable real AI reasoning and phone calls
+ANTHROPIC_API_KEY=your_api_key
+TWILIO_ACCOUNT_SID=your_sid
+TWILIO_AUTH_TOKEN=your_token
+
+# Local Development Overrides
+KAFKA_BROKERS=none
+NEO4J_URI=none
+TIMESCALE_DATABASE_URL=none
+```
+*(Note: Setting the databases to `none` allows the backend to run in a standalone "mock/demo mode" without needing Docker containers for Kafka or Neo4j).*
+
+### 2. Run the Backend
+You will need Python 3.9+ installed.
 
 ```bash
-docker compose up --build
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
 ```
+The backend will start on `http://localhost:8000`.
 
-The API is available at `http://localhost:8000`. Default development API key:
-
-```text
-X-API-Key: dev-secret
-```
-
-## Seed Neo4j
-
-The API container runs `alembic upgrade head` and attempts `python -m app.cli seed-graph` during startup. You can rerun graph seeding manually with:
+### 3. Run the Frontend
+You will need Node.js installed.
 
 ```bash
-docker compose exec api python -m app.cli seed-graph
+cd frontend
+npm install
+npm run dev
 ```
+The frontend will start on `http://localhost:5173`. Open this URL in your browser to explore the dashboard and start simulating disruptions!
 
-## API Examples
-
-Upload shipments:
+## 🐳 Running the Full Stack (Optional)
+If you want to run the full architecture including the Redpanda (Kafka) event bus, Neo4j graph database, and TimescaleDB, you can use Docker:
 
 ```bash
-curl -H "X-API-Key: dev-secret" -F "file=@sample.csv" http://localhost:8000/shipments/upload
+docker-compose up --build
 ```
-
-Inject a disruption:
-
-```bash
-curl -X POST http://localhost:8000/webhooks/disruption \
-  -H "X-API-Key: dev-secret" -H "Content-Type: application/json" \
-  -d '{"event_type":"severe_weather","source":"manual","confidence":0.85,"severity":0.7,"start_time":"2026-06-11T00:00:00Z","affected_ports":["NLRTM"],"affected_vessels":[],"raw_data":{}}'
-```
-
-Fetch recovery:
-
-```bash
-curl -H "X-API-Key: dev-secret" http://localhost:8000/shipments/{shipment_id}/recovery
-```
-
-Sample CSV:
-
-```csv
-origin_port_code,destination_port_code,cargo_value,etd,eta,vessel_name,carrier_name,forwarder_phone,forwarder_email
-INNSA,NLRTM,10000000,2026-06-11T10:00:00Z,2026-06-16T10:00:00Z,TestVessel,Maersk,+15551234567,ops@example.com
-```
-
-## Architecture
-
-```mermaid
-flowchart LR
-  A[Collectors and Webhooks] --> B[Normalizer]
-  B --> C[Event Fusion]
-  C --> D[Risk Scorer]
-  D --> E[(PostgreSQL)]
-  F[(Neo4j Network)] --> G[A* Pathfinder]
-  E --> H[Business Impact]
-  H --> I[Scenario Generator]
-  G --> I
-  I --> J[Utility Optimizer]
-  J --> K[Explanation Engine]
-  K --> L[Alerts and Forwarder Brief]
-  M[FastAPI] --> E
-  M --> J
-```
-
-## Tests
-
-```bash
-pytest
-```
- 4a4b815 (Move LRIE engine into backend folder)
