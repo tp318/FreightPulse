@@ -35,6 +35,10 @@ class KafkaConsumerThread(threading.Thread):
         self._stop_event.set()
 
     def run(self):
+        if self.brokers.lower() == "none":
+            logger.info(f"[{self.group_id}] KAFKA_BROKERS='none' — consumer disabled.")
+            return
+
         try:
             from confluent_kafka import Consumer, KafkaException
         except ImportError:

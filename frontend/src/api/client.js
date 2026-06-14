@@ -1,9 +1,9 @@
 import axios from 'axios';
 import { MOCK_DATA } from './mockData.js';
 
-const USE_MOCK = true; // flip to false when backend is running
+const USE_MOCK = false; // Using real backend deployed on Render
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : 'https://freightpulse-4-qa1q.onrender.com');
 
 const api = axios.create({
   baseURL: API_URL,

@@ -3,8 +3,8 @@
  */
 import { useEffect, useRef, useCallback } from 'react';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const ENGINE_WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/engine';
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : 'https://freightpulse-4-qa1q.onrender.com');
+const ENGINE_WS_URL = import.meta.env.VITE_WS_URL || (import.meta.env.DEV ? 'ws://localhost:8000/ws/engine' : 'wss://freightpulse-4-qa1q.onrender.com/ws/engine');
 
 /**
  * Custom hook: manages a WebSocket connection to /ws/engine.

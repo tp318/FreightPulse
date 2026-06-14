@@ -49,16 +49,35 @@ def publish(topic: str, payload: Any, source: Optional[str] = None):
     Wraps payload in the standard FreightPulse envelope:
       { source, timestamp, payload }
     """
-    producer = _get_producer()
-    if producer is None:
-        logger.debug(f"Kafka disabled — skipping publish to {topic}")
-        return
-
     envelope = {
         "source": source or "system",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "payload": payload,
     }
+
+    producer = _get_producer()
+    if producer is None:
+        from core.config import settings
+        if settings.kafka_brokers.lower() == "none":
+            # In-memory routing fallback when Kafka is disabled
+            try:
+                from engine.alert_engine import (
+                    handle_news, handle_weather, handle_port_congestion, handle_ais
+                )
+                if topic == "ingestion.news":
+                    handle_news(envelope)
+                elif topic == "ingestion.weather":
+                    handle_weather(envelope)
+                elif topic == "ingestion.port-congestion":
+                    handle_port_congestion(envelope)
+                elif topic == "ingestion.ais":
+                    handle_ais(envelope)
+            except Exception as e:
+                logger.error(f"In-memory routing failed for {topic}: {e}")
+        else:
+            logger.debug(f"Kafka disabled — skipping publish to {topic}")
+        return
+
     try:
         producer.produce(
             topic=topic,
