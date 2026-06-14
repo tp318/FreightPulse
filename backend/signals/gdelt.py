@@ -1,5 +1,5 @@
 import httpx
-from datetime import datetime
+from datetime import datetime, timezone
 
 KNOWN_PORTS = [
     "Rotterdam", "Hamburg", "Felixstowe", "Antwerp",
@@ -34,20 +34,27 @@ async def fetch_gdelt() -> dict:
                 if not has_keyword or not title:
                     continue
                 location = extract_location(title) or article.get("sourcecountry", "")
-                return {
-                    "article_id": f"gdelt_{datetime.utcnow().timestamp()}",
+                result = {
+                    "article_id": f"gdelt_{datetime.now(timezone.utc).timestamp()}",
                     "source": "GDELT",
                     "author": "GDELT Feed",
                     "title": title,
                     "content": article.get("url", ""),
                     "url": article.get("url", ""),
-                    "published_at": datetime.utcnow().isoformat(),
+                    "published_at": datetime.now(timezone.utc).isoformat(),
                     "language": article.get("language", "en"),
                     "region": article.get("sourcecountry", ""),
                     "sentiment": -0.5,
                     "credibility_score": 0.75,
                     "location": location,
                 }
+                # Publish to Kafka ingestion topic
+                try:
+                    from kafka.producer import publish
+                    publish("ingestion.news", result, source="gdelt")
+                except Exception:
+                    pass
+                return result
     except Exception as e:
         print(f"GDELT error: {e}")
     return {}

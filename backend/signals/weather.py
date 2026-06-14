@@ -1,11 +1,11 @@
 import httpx
-from datetime import datetime
+from datetime import datetime, timezone
 
 PORTS = [
     {"name": "Rotterdam", "lat": 51.9475, "lon": 4.1425},
-    {"name": "Hamburg", "lat": 53.5, "lon": 10.0},
-    {"name": "Felixstowe", "lat": 51.96, "lon": 1.35},
-    {"name": "Antwerp", "lat": 51.23, "lon": 4.40},
+    {"name": "Hamburg",   "lat": 53.5,    "lon": 10.0},
+    {"name": "Felixstowe","lat": 51.96,   "lon": 1.35},
+    {"name": "Antwerp",   "lat": 51.23,   "lon": 4.40},
 ]
 
 async def fetch_weather(port_name: str = "Rotterdam") -> dict:
@@ -22,7 +22,7 @@ async def fetch_weather(port_name: str = "Rotterdam") -> dict:
             data = response.json()
             current = data.get("current_weather", {})
             wind = current.get("windspeed", 0)
-            return {
+            result = {
                 "location": f"Port of {port['name']}",
                 "latitude": port["lat"],
                 "longitude": port["lon"],
@@ -39,8 +39,22 @@ async def fetch_weather(port_name: str = "Rotterdam") -> dict:
                 "humidity": 78,
                 "pressure": 1015,
                 "lightning_probability": 0.0,
-                "timestamp": current.get("time", datetime.utcnow().isoformat() + "Z")
+                "timestamp": current.get("time", datetime.now(timezone.utc).isoformat() + "Z")
             }
+            # Publish to Kafka ingestion topic
+            try:
+                from kafka.producer import publish
+                from db.timescale import write_weather_observation
+                publish("ingestion.weather", result, source="open-meteo")
+                write_weather_observation(
+                    region=port["name"],
+                    wind_speed=result["wind_speed_kmh"],
+                    wave_height=result["wave_height_m"],
+                    temperature=result["temperature"],
+                )
+            except Exception:
+                pass
+            return result
     except Exception as e:
         print(f"Weather error: {e}")
     return {}

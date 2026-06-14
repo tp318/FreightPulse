@@ -1,4 +1,4 @@
-/** App — Root layout component: topbar, alert banner, two-column grid with all panels */
+/** App — Root layout component: topbar with Dashboard/Engine toggle, view routing */
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { MOCK_DATA } from './api/mockData.js';
@@ -17,8 +17,10 @@ import AlertBanner from './components/AlertBanner.jsx';
 import ShipmentMap from './components/ShipmentMap.jsx';
 import FleetSummary from './components/FleetSummary.jsx';
 import BriefPanel from './components/BriefPanel.jsx';
+import EnginePage from './pages/EnginePage.jsx';
 
 function App() {
+  const [activeView, setActiveView] = useState('dashboard'); // 'dashboard' | 'engine'
   const [shipments, setShipments] = useState([]);
   const [signals, setSignals] = useState(MOCK_DATA.signals);
   const [alerts, setAlerts] = useState(MOCK_DATA.alerts);
@@ -83,7 +85,7 @@ function App() {
     }
   }, [alerts]);
 
-  // Simulate handler
+  // Simulate handler (dashboard)
   const handleSimulate = useCallback(async () => {
     setSimulateLoading(true);
     try {
@@ -134,6 +136,8 @@ function App() {
           background: 'var(--bg-surface)',
           borderBottom: '1px solid var(--border)',
           flexShrink: 0,
+          zIndex: 100,
+          position: 'relative',
         }}
       >
         {/* Left: Logo */}
@@ -150,6 +154,54 @@ function App() {
             <span style={{ color: 'var(--text-primary)' }}>Freight</span>
             <span style={{ color: 'var(--accent-green)' }}>Pulse</span>
           </h1>
+
+          {/* Nav tabs */}
+          <nav
+            style={{
+              display: 'flex',
+              gap: '2px',
+              marginLeft: '16px',
+              background: 'var(--bg-base)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              padding: '3px',
+            }}
+          >
+            {[
+              { id: 'dashboard', label: '⬛ Dashboard' },
+              { id: 'engine',    label: '⚡ Engine' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                id={`nav-tab-${tab.id}`}
+                onClick={() => setActiveView(tab.id)}
+                style={{
+                  padding: '4px 14px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: activeView === tab.id ? 600 : 400,
+                  fontFamily: 'var(--font-sans)',
+                  background: activeView === tab.id
+                    ? 'var(--bg-elevated)'
+                    : 'transparent',
+                  color: activeView === tab.id
+                    ? 'var(--text-primary)'
+                    : 'var(--text-tertiary)',
+                  transition: 'all 0.15s ease',
+                  boxShadow: activeView === tab.id
+                    ? '0 1px 4px rgba(0,0,0,0.3)'
+                    : 'none',
+                  borderBottom: activeView === tab.id
+                    ? '2px solid var(--accent-green)'
+                    : '2px solid transparent',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
         </div>
 
         {/* Center: Live indicator */}
@@ -188,42 +240,47 @@ function App() {
           </span>
         </div>
 
-        {/* Right: Simulate button */}
-        <button
-          onClick={handleSimulate}
-          disabled={simulateLoading}
-          className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded"
-          style={{
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            color: simulateLoading ? 'var(--text-tertiary)' : 'var(--text-primary)',
-            cursor: simulateLoading ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          {simulateLoading ? (
-            <>
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: '12px',
-                  height: '12px',
-                  border: '2px solid var(--border-accent)',
-                  borderTopColor: 'var(--text-primary)',
-                  borderRadius: '50%',
-                  animation: 'spin 0.8s linear infinite',
-                }}
-              />
-              Simulating…
-            </>
-          ) : (
-            <>⚡ Simulate Live Event</>
-          )}
-        </button>
+        {/* Right: action button */}
+        {activeView === 'dashboard' && (
+          <button
+            onClick={handleSimulate}
+            disabled={simulateLoading}
+            className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded"
+            style={{
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              color: simulateLoading ? 'var(--text-tertiary)' : 'var(--text-primary)',
+              cursor: simulateLoading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {simulateLoading ? (
+              <>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: '12px',
+                    height: '12px',
+                    border: '2px solid var(--border-accent)',
+                    borderTopColor: 'var(--text-primary)',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                  }}
+                />
+                Simulating…
+              </>
+            ) : (
+              <>⚡ Simulate Live Event</>
+            )}
+          </button>
+        )}
+        {activeView === 'engine' && (
+          <div style={{ width: '140px' }} /> // spacer to balance logo
+        )}
       </header>
 
-      {/* ─── ALERT BANNER ─── */}
-      {activeAlert && (
+      {/* ─── ALERT BANNER (dashboard only) ─── */}
+      {activeView === 'dashboard' && activeAlert && (
         <AlertBanner
           alert={activeAlert}
           onGenerateBrief={handleGenerateBrief}
@@ -231,30 +288,34 @@ function App() {
         />
       )}
 
-      {/* ─── MAIN GRID ─── */}
-      <main className="main-grid">
-        {/* LEFT COLUMN — Map + Fleet Summary */}
-        <aside className="flex flex-col" style={{ overflow: 'hidden' }}>
-          <ShipmentMap shipments={shipments} alerts={alerts} />
-          <FleetSummary shipments={shipments} alerts={alerts} signals={signals} />
-        </aside>
+      {/* ─── VIEWS ─── */}
+      {activeView === 'dashboard' ? (
+        <main className="main-grid">
+          {/* LEFT COLUMN — Map + Fleet Summary */}
+          <aside className="flex flex-col" style={{ overflow: 'hidden' }}>
+            <ShipmentMap shipments={shipments} alerts={alerts} />
+            <FleetSummary shipments={shipments} alerts={alerts} signals={signals} />
+          </aside>
 
-        {/* RIGHT COLUMN — CSV upload or shipment table + brief */}
-        <section
-          className="flex flex-col"
-          style={{
-            padding: '16px 24px',
-            overflow: 'auto',
-          }}
-        >
-          {shipments.length === 0 ? (
-            <CSVUpload onUpload={handleUpload} />
-          ) : (
-            <ShipmentTable shipments={shipments} alerts={alerts} />
-          )}
-          <BriefPanel brief={brief} onClose={() => setBrief(null)} />
-        </section>
-      </main>
+          {/* RIGHT COLUMN — CSV upload or shipment table + brief */}
+          <section
+            className="flex flex-col"
+            style={{
+              padding: '16px 24px',
+              overflow: 'auto',
+            }}
+          >
+            {shipments.length === 0 ? (
+              <CSVUpload onUpload={handleUpload} />
+            ) : (
+              <ShipmentTable shipments={shipments} alerts={alerts} />
+            )}
+            <BriefPanel brief={brief} onClose={() => setBrief(null)} />
+          </section>
+        </main>
+      ) : (
+        <EnginePage />
+      )}
 
       {/* Inline spinner keyframe */}
       <style>{`

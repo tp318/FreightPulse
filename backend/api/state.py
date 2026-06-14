@@ -1,6 +1,11 @@
+"""
+Shared in-memory state for the FreightPulse backend.
+Extended to include WebSocket client set and TwiML store.
+"""
 state = {
-    "shipments": [],
+    "latest_news":    {},
+    "latest_weather": {},
     "active_signals": [],
-    "alerts": []
+    "alerts":         [],
+    "shipments":      [],
 }
-

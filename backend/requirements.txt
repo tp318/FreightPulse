@@ -1,4 +1,19 @@
 fastapi
-uvicorn
+uvicorn[standard]
 httpx
 python-dotenv
+pydantic-settings
+# Kafka / Redpanda
+confluent-kafka
+# Neo4j
+neo4j
+# TimescaleDB
+psycopg2-binary
+# Anthropic LLM
+anthropic
+# Twilio calling agent
+twilio
+# Redis (call script cache)
+redis
+# WebSocket support (included in uvicorn[standard] but listed explicitly)
+websockets
