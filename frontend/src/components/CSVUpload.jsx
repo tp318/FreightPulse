@@ -149,6 +149,12 @@ export default function CSVUpload({ onUpload }) {
             >
               Accepts .csv with columns: id, origin, destination, vessel, eta, cargoValue
             </p>
+            <p
+              className="text-xs"
+              style={{ color: 'var(--text-tertiary)', marginTop: '8px' }}
+            >
+              Need a test file? <a href="https://drive.google.com/file/d/1OaFJhzISPzXvuLu2RpA_rhb0vLupMPT7/view?usp=sharing" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-green)', textDecoration: 'underline' }}>Download mock CSV</a>
+            </p>
           </>
         ) : null}
 
