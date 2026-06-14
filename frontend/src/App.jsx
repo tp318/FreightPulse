@@ -30,8 +30,9 @@ function App() {
   const [simulateLoading, setSimulateLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [showTutorial, setShowTutorial] = useState(() => {
-    // Clear v1 key so users who dismissed v1 see the new tour
+    // Clear old tutorial keys so users always see the latest tour
     localStorage.removeItem('fp_tutorial_dismissed');
+    localStorage.removeItem('fp_tutorial_v2_dismissed');
     return shouldShowTutorial();
   });
 
@@ -417,7 +418,10 @@ function App() {
 
       {/* ─── Tutorial Overlay ─── */}
       {showTutorial && (
-        <TutorialOverlay onDismiss={() => setShowTutorial(false)} />
+        <TutorialOverlay
+          onDismiss={() => setShowTutorial(false)}
+          onNavigate={(view) => setActiveView(view)}
+        />
       )}
     </div>
   );

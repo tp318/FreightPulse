@@ -301,33 +301,35 @@ export default function EnginePage() {
             const isLast = i === STAGE_DEFS.length - 1;
 
             return (
-              <PipelineCard
-                key={stage.id}
-                status={stageState.status}
-                icon={stage.icon}
-                title={stage.title}
-                subtitle={stage.subtitle}
-                isLast={isLast}
-                error={stageState.data?.error}
-              >
-                {/* Render stage-specific content */}
-                {stage.id === 'ingestion'     && <IngestionCard data={stageState.data} />}
-                {stage.id === 'kafka'         && <KafkaCard data={stageState.data} />}
-                {stage.id === 'storage'       && <StorageCard data={stageState.data} />}
-                {stage.id === 'detection'     && <DisruptionCard data={stageState.data} />}
-                {stage.id === 'graph-query'   && <GraphQueryCard data={stageState.data} />}
-                {stage.id === 'ml-prediction' && <MLPredictionCard data={stageState.data} />}
-                {stage.id === 'scoring'       && <ScoringCard data={stageState.data} />}
-                {stage.id === 'alt-routes'    && <AltRoutesCard data={stageState.data} />}
-                {stage.id === 'llm-reasoning' && (
-                  <LLMReasoningCard
-                    data={stageState.data}
-                    streamChunk={llmStream.chunk}
-                    isStreaming={isStreaming}
-                  />
-                )}
-                {stage.id === 'calling-agent' && <CallingAgentCard data={stageState.data} />}
-              </PipelineCard>
+              /* id used by the tutorial overlay to spotlight each stage */
+              <div key={stage.id} id={`pipeline-card-${stage.id}`}>
+                <PipelineCard
+                  status={stageState.status}
+                  icon={stage.icon}
+                  title={stage.title}
+                  subtitle={stage.subtitle}
+                  isLast={isLast}
+                  error={stageState.data?.error}
+                >
+                  {/* Render stage-specific content */}
+                  {stage.id === 'ingestion'     && <IngestionCard data={stageState.data} />}
+                  {stage.id === 'kafka'         && <KafkaCard data={stageState.data} />}
+                  {stage.id === 'storage'       && <StorageCard data={stageState.data} />}
+                  {stage.id === 'detection'     && <DisruptionCard data={stageState.data} />}
+                  {stage.id === 'graph-query'   && <GraphQueryCard data={stageState.data} />}
+                  {stage.id === 'ml-prediction' && <MLPredictionCard data={stageState.data} />}
+                  {stage.id === 'scoring'       && <ScoringCard data={stageState.data} />}
+                  {stage.id === 'alt-routes'    && <AltRoutesCard data={stageState.data} />}
+                  {stage.id === 'llm-reasoning' && (
+                    <LLMReasoningCard
+                      data={stageState.data}
+                      streamChunk={llmStream.chunk}
+                      isStreaming={isStreaming}
+                    />
+                  )}
+                  {stage.id === 'calling-agent' && <CallingAgentCard data={stageState.data} />}
+                </PipelineCard>
+              </div>
             );
           })}
         </div>
